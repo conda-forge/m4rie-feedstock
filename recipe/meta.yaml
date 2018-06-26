@@ -16,14 +16,15 @@ build:
 
 requirements:
   build:
-    - toolchain
     - libtool
-    - libpng >=1.6.28,<1.7
-    - zlib 1.2.*
+    - {{ compiler('c') }}
+  host:
+    - libpng
+    - zlib
     - m4ri
   run:
-    - libpng >=1.6.28,<1.7
-    - zlib 1.2.*
+    - libpng
+    - zlib
     - m4ri
 
 test:
