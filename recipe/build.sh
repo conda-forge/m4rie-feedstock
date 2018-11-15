@@ -1,9 +1,9 @@
 #!/bin/bash
 
-export CPPFLAGS="-I$PREFIX/include $CPPFLAGS"
-export LDFLAGS="-L$PREFIX/lib $LDFLAGS"
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PREFIX/lib"
 export CFLAGS="-O2 -g -fPIC $CFLAGS"
+
+# Get rid of any `.la` from defaults.
+find $PREFIX/lib -name '*.la' -delete
 
 chmod +x configure
 
