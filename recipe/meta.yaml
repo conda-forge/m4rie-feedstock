@@ -27,10 +27,6 @@ requirements:
     - libpng
     - zlib
     - m4ri
-  run:
-    - libpng
-    - zlib
-    - m4ri
 
 test:
   commands:
