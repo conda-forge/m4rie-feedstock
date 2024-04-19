@@ -37,8 +37,8 @@ test:
 
 about:
   home: https://bitbucket.org/malb/m4rie
-  license: GPLv2+
-  license_file: {{ SRC_DIR }}/COPYING
+  license: GPL-2.0-or-later
+  license_file: COPYING
   summary: M4RIE is a library for fast arithmetic with dense matrices over GF(2^e) for 2 ≤ e ≤ 16.
   dev_url: https://bitbucket.org/malb/m4rie
   doc_url: https://malb.bitbucket.io/m4rie
