@@ -11,8 +11,11 @@ source:
   sha256: a0c3f46c399ed2e4af5aaad9de9db0962d15d5ccb9bd0e313df6b2c16bf8e0b1
 
 build:
-  number: 1001
+  number: 1002
   skip: true  # [win]
+  run_exports:
+    - {{ pin_subpackage("m4rie") }}
+
 
 requirements:
   build:
