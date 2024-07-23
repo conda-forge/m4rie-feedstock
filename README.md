@@ -3,15 +3,13 @@ About m4rie-feedstock
 
 Feedstock license: [BSD-3-Clause](https://github.com/conda-forge/m4rie-feedstock/blob/main/LICENSE.txt)
 
-Home: https://bitbucket.org/malb/m4rie
+Home: https://github.com/malb/m4rie
 
 Package license: GPL-2.0-or-later
 
 Summary: M4RIE is a library for fast arithmetic with dense matrices over GF(2^e) for 2 ≤ e ≤ 16.
 
-Development: https://bitbucket.org/malb/m4rie
-
-Documentation: https://malb.bitbucket.io/m4rie
+Development: https://github.com/malb/m4rie
 
 Current build status
 ====================
