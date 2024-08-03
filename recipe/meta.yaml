@@ -1,4 +1,4 @@
-{% set version = "20150908" %}
+{% set version = "20200125" %}
 {% set name = "m4rie" %}
 
 package:
@@ -7,11 +7,11 @@ package:
 
 source:
   fn: {{ name }}-{{ version }}.tar.gz
-  url: https://bitbucket.org/malb/m4rie/downloads/{{ name }}-{{ version }}.tar.gz
-  sha256: a0c3f46c399ed2e4af5aaad9de9db0962d15d5ccb9bd0e313df6b2c16bf8e0b1
+  url: https://github.com/malb/{{ name }}/archive/refs/tags/release-{{ version }}.tar.gz
+  sha256: bc5c515e6151203b7a483f6ca84a22ec8c0407ea3621d8e11de3c997b5009d69
 
 build:
-  number: 1002
+  number: 0
   skip: true  # [win]
   run_exports:
     - {{ pin_subpackage("m4rie") }}
@@ -20,9 +20,11 @@ build:
 requirements:
   build:
     - libtool
-    - libtool  # [unix]
-    - {{ compiler('c') }}
     - make
+    - automake   # [unix]
+    - gnuconfig  # [unix]
+    - {{ compiler('c') }}
+    - {{ stdlib('c') }}
   host:
     - libpng
     - zlib
@@ -36,12 +38,11 @@ test:
     - test -f ${PREFIX}/lib/lib{{ name }}.so     # [linux]
 
 about:
-  home: https://bitbucket.org/malb/m4rie
+  home: https://github.com/malb/m4rie
   license: GPL-2.0-or-later
   license_file: COPYING
   summary: M4RIE is a library for fast arithmetic with dense matrices over GF(2^e) for 2 ≤ e ≤ 16.
-  dev_url: https://bitbucket.org/malb/m4rie
-  doc_url: https://malb.bitbucket.io/m4rie
+  dev_url: https://github.com/malb/m4rie
 
 extra:
   recipe-maintainers:
