@@ -20,10 +20,11 @@ build:
 requirements:
   build:
     - libtool
-    - libtool  # [unix]
+    - make
+    - automake   # [unix]
+    - gnuconfig  # [unix]
     - {{ compiler('c') }}
     - {{ stdlib('c') }}
-    - make
   host:
     - libpng
     - zlib
