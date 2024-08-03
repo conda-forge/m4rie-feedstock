@@ -4,7 +4,7 @@ cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
 
 export CFLAGS="-O2 -g -fPIC $CFLAGS -L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib"
 
-chmod +x configure
+autoreconf -ivf
 
 ./configure --prefix=$PREFIX --libdir=$PREFIX/lib
 
