@@ -1,12 +1,14 @@
 #!/bin/bash
-# Get an updated config.sub and config.guess
-cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
-
-autoreconf -ivf
 
 if [[ "$target_platform" == "win-"* ]]; then
   export CFLAGS="$CFLAGS -DM4RI_USE_DLL"
+else
+  # Get an updated config.sub and config.guess
+  cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
 fi
+
+autoreconf -ivf
+
 
 ./configure --prefix=$PREFIX --libdir=$PREFIX/lib --disable-static
 
