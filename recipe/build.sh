@@ -10,10 +10,11 @@ fi
 
 autoreconf -ivf
 
-
 ./configure --prefix=$PREFIX --libdir=$PREFIX/lib --disable-static
 
 [[ "$target_platform" == "win-"* ]] && patch_libtool
+
+ls -alh $SRC_DIR/m4rie
 
 make -j${CPU_COUNT}
 if [[ "${CONDA_BUILD_CROSS_COMPILATION}" != "1" || "${CROSSCOMPILING_EMULATOR:-}" != "" ]]; then
