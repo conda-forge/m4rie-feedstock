@@ -1,8 +1,9 @@
 #!/bin/bash
 
 if [[ "$target_platform" == "win-"* ]]; then
-  export CFLAGS="$CFLAGS -DM4RI_USE_DLL -Wl,-rpath,${PREFIX}/lib -L${PREFIX}/lib"
+  export CFLAGS="$CFLAGS -DM4RI_USE_DLL"
 else
+  export CFLAGS="$CFLAGS -Wl,-rpath,${PREFIX}/lib -L${PREFIX}/lib"
   # Get an updated config.sub and config.guess
   cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
 fi
