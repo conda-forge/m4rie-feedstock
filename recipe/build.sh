@@ -2,6 +2,9 @@
 
 if [[ "$target_platform" == "win-"* ]]; then
   export CFLAGS="$CFLAGS -DM4RI_USE_DLL"
+  # undo symlinks
+  rm m4rie
+  cp -r src m4rie
 else
   export CFLAGS="$CFLAGS -Wl,-rpath,${PREFIX}/lib -L${PREFIX}/lib"
   # Get an updated config.sub and config.guess
@@ -15,6 +18,7 @@ autoreconf -ivf
 [[ "$target_platform" == "win-"* ]] && patch_libtool
 
 ls -alh $SRC_DIR/m4rie
+ls -alh $SRC_DIR/m4rie/
 
 make -j${CPU_COUNT}
 if [[ "${CONDA_BUILD_CROSS_COMPILATION}" != "1" || "${CROSSCOMPILING_EMULATOR:-}" != "" ]]; then

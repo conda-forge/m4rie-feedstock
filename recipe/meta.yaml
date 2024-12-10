@@ -26,7 +26,7 @@ requirements:
   host:
     - libpng
     - zlib
-    - m4ri
+    - m4ri  {{ version }}
 
 test:
   commands:
