@@ -22,7 +22,7 @@ requirements:
     - gnuconfig  # [unix]
     - {{ compiler('c') }}
     - {{ stdlib('c') }}
-    - autotools_clang_conda
+    - autotools_clang_conda  # [win]
   host:
     - libpng
     - zlib
