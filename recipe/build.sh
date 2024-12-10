@@ -2,14 +2,18 @@
 # Get an updated config.sub and config.guess
 cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
 
-export CFLAGS="-O2 -g -fPIC $CFLAGS -L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib"
-
 autoreconf -ivf
 
-./configure --prefix=$PREFIX --libdir=$PREFIX/lib
+if [[ "$target_platform" == "win-"* ]]; then
+  export CFLAGS="$CFLAGS -DM4RI_USE_DLL"
+fi
 
-make
-if [[ "${CONDA_BUILD_CROSS_COMPILATION}" != "1" ]]; then
-make check
+./configure --prefix=$PREFIX --libdir=$PREFIX/lib --disable-static
+
+[[ "$target_platform" == "win-"* ]] && patch_libtool
+
+make -j${CPU_COUNT}
+if [[ "${CONDA_BUILD_CROSS_COMPILATION}" != "1" || "${CROSSCOMPILING_EMULATOR:-}" != "" ]]; then
+  make check -j${CPU_COUNT}
 fi
 make install
