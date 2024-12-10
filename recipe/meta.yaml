@@ -2,40 +2,43 @@
 {% set name = "m4rie" %}
 
 package:
-  name: {{ name }}
+  name: m4rie
   version: {{ version }}
 
 source:
-  fn: {{ name }}-{{ version }}.tar.gz
-  url: https://github.com/malb/{{ name }}/archive/refs/tags/release-{{ version }}.tar.gz
+  url: https://github.com/malb/m4rie/archive/refs/tags/release-{{ version }}.tar.gz
   sha256: bc5c515e6151203b7a483f6ca84a22ec8c0407ea3621d8e11de3c997b5009d69
+  patches:
+    - random.diff
 
 build:
-  number: 0
-  skip: true  # [win]
+  number: 1
   run_exports:
     - {{ pin_subpackage("m4rie") }}
 
-
 requirements:
   build:
-    - libtool
-    - make
+    - libtool    # [unix]
+    - make       # [unix]
     - automake   # [unix]
     - gnuconfig  # [unix]
     - {{ compiler('c') }}
     - {{ stdlib('c') }}
+    - autotools_clang_conda  # [win]
   host:
     - libpng
     - zlib
-    - m4ri
+    - m4ri  {{ version }}
 
 test:
   commands:
-    - test -f ${PREFIX}/include/m4rie/m4rie.h
-    - test -f ${PREFIX}/lib/lib{{ name }}.a
-    - test -f ${PREFIX}/lib/lib{{ name }}.dylib  # [osx]
-    - test -f ${PREFIX}/lib/lib{{ name }}.so     # [linux]
+    - test -f ${PREFIX}/include/m4rie/m4rie.h                            # [not win]
+    - test ! -f ${PREFIX}/lib/libm4rie.a                                 # [not win]
+    - test -f ${PREFIX}/lib/libm4rie${SHLIB_EXT}                         # [not win]
+    - if not exist %LIBRARY_BIN%\\m4rie-0-0-{{ version }}.dll exit 1     # [win]
+    - if not exist %LIBRARY_LIB%\\m4rie.lib exit 1                       # [win]
+    - if exist %LIBRARY_LIB%\\m4rie_static.lib exit 1                    # [win]
+    - if not exist %LIBRARY_INC%\\m4rie\\m4rie.h exit 1                  # [win]
 
 about:
   home: https://github.com/malb/m4rie
