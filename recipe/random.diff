@@ -1,0 +1,11 @@
+--- src/mzed.c	2024-12-10 09:27:22.765058016 +0530
++++ src/mzed.c	2024-12-10 09:27:36.227839153 +0530
+@@ -45,7 +45,7 @@
+   unsigned int bitmask = (1<<A->finite_field->degree)-1;
+   for(rci_t r=0; r<A->nrows; r++) {
+     for(rci_t c=0; c<A->ncols; c++) {
+-      mzed_write_elem(A,r,c, random()&bitmask);
++      mzed_write_elem(A,r,c, rand()&bitmask);
+     }
+   }
+ }

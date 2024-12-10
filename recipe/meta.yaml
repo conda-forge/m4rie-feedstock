@@ -8,6 +8,8 @@ package:
 source:
   url: https://github.com/malb/m4rie/archive/refs/tags/release-{{ version }}.tar.gz
   sha256: bc5c515e6151203b7a483f6ca84a22ec8c0407ea3621d8e11de3c997b5009d69
+  patches:
+    - random.diff
 
 build:
   number: 1
