@@ -1,10 +1,10 @@
 #!/bin/bash
 # Get an updated config.sub and config.guess
-cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
+# cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
 
 export CFLAGS="-O2 -g -fPIC $CFLAGS -L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib"
 
-autoreconf -ivf
+# autoreconf -ivf
 
 ./configure --prefix=$PREFIX --libdir=$PREFIX/lib
 
