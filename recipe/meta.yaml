@@ -1,4 +1,4 @@
-{% set version = "20250103" %}
+{% set version = "20250128" %}
 {% set name = "m4rie" %}
 
 package:
@@ -7,8 +7,8 @@ package:
 
 source:
   fn: {{ name }}-{{ version }}.tar.gz
-  url: https://github.com/malb/{{ name }}/archive/refs/tags/release-{{ version }}.tar.gz
-  sha256: 249fc10b665fd7d902bae6d0e872b5dbf120942c4f15f934de40096b84f9549d
+  url: https://github.com/malb/{{ name }}/archive/refs/tags/{{ version }}.tar.gz
+  sha256: cf2a053de5086d6150ab44cb82e27c112a285c8786d88bea2e6518ed80984d5c
 
 build:
   number: 0
