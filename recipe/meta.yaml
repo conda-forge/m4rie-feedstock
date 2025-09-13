@@ -7,8 +7,8 @@ package:
 
 source:
   fn: {{ name }}-{{ version }}.tar.gz
-  url: https://github.com/malb/{{ name }}/archive/refs/tags/{{ version }}.tar.gz
-  sha256: cf2a053de5086d6150ab44cb82e27c112a285c8786d88bea2e6518ed80984d5c
+  url: https://github.com/malb/{{ name }}/releases/download/{{ version }}/{{ name }}-{{ version }}.tar.gz
+  sha256: 96f1adafd50e6a0b51dc3aa1cb56cb6c1361ae7c10d97dc35c3fa70822a55bd7
 
 build:
   number: 0
