@@ -1,0 +1,27 @@
+name: Test Windows Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-win-64:
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Miniforge
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        miniforge-version: latest
+        channels: conda-forge
+        channel-priority: strict
+
+    - name: Install conda-build
+      run: conda install -n base -c conda-forge conda-build
+      shell: bash -el {0}
+
+    - name: Build m4rie (win-64)
+      run: conda build recipe -m .ci_support/win_64_.yaml -c conda-forge --no-anaconda-upload
+      shell: bash -el {0}
