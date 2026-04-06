@@ -3,8 +3,9 @@ set -euo pipefail
 
 if [[ "${target_platform}" == win* ]]; then
     # On Windows, conda expects headers/libs under $PREFIX/Library.
-    # PREFIX is a Windows path (C:\...) which autotools rejects unless converted.
-    POSIX_PREFIX="$(cygpath -u "${PREFIX}")"
+    # conda-build sets CYGWIN_PREFIX=/cygdrive/c/bld/..._h_env (Cygwin format).
+    # Strip /cygdrive to get MSYS2 format: /c/bld/..._h_env
+    POSIX_PREFIX="${CYGWIN_PREFIX/\/cygdrive/}"
     INSTALL_PREFIX="${POSIX_PREFIX}/Library"
     export CFLAGS="-O2 -g ${CFLAGS:-} -L${INSTALL_PREFIX}/lib"
     ./configure --prefix="${INSTALL_PREFIX}" --libdir="${INSTALL_PREFIX}/lib"
