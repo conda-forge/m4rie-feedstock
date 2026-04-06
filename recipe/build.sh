@@ -2,7 +2,11 @@
 # Get an updated config.sub and config.guess
 # cp $BUILD_PREFIX/share/libtool/build-aux/config.* .
 
-export CFLAGS="-O2 -g -fPIC $CFLAGS -L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib"
+if [[ "${target_platform}" == win* ]]; then
+    export CFLAGS="-O2 -g $CFLAGS -L${PREFIX}/lib"
+else
+    export CFLAGS="-O2 -g -fPIC $CFLAGS -L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib"
+fi
 
 # autoreconf -ivf
 

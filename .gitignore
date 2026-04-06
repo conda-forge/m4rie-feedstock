@@ -23,6 +23,9 @@
 
 *.pyc
 
+# Local build config - not for CI
+recipe/conda_build_config.yaml
+
 # Rattler-build's artifacts are in `output` when not specifying anything.
 /output
 # Pixi's configuration
