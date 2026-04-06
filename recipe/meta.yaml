@@ -25,7 +25,7 @@ requirements:
     - m2-bash  # [win]
     - m2-make  # [win]
     - {{ compiler('c') }}  # [not win]
-    - vs2022_win-64        # [win]
+    - m2w64-toolchain      # [win]
     - {{ stdlib('c') }}    # [not win]
   host:
     - libpng
