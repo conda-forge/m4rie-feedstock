@@ -17,10 +17,23 @@ jobs:
         miniforge-version: latest
         channels: conda-forge
         channel-priority: strict
+        activate-environment: ""
 
     - name: Install conda-build
       shell: bash -el {0}
       run: conda install -n base -c conda-forge conda-build conda-forge-pinning
+
+    - name: Diagnose platform and variant
+      shell: bash -el {0}
+      run: |
+        echo "=== conda-build version ==="
+        conda build --version
+        echo "=== config.platform and subdir ==="
+        python -c "from conda_build.config import Config; c=Config(); print('platform:', repr(c.platform)); print('subdir:', repr(c.subdir))"
+        echo "=== native_compiler result ==="
+        python -c "from conda_build.config import Config; from conda_build.variants import native_compiler; c=Config(); print('native_compiler c:', native_compiler('c', c))"
+        echo "=== variant from -m file ==="
+        python -c "from conda_build import variants; from conda_build.config import Config; cfg=Config(variant_config_files=['.ci_support/win_64_.yaml']); files=variants.find_config_files('recipe', cfg); print('files:', files); v=variants.get_package_combined_spec(*[variants.parse_config_file(f, cfg) for f in files] or [{}]); print('c_compiler:', v.get('c_compiler'))"
 
     - name: Write compiler config to all locations
       shell: bash -el {0}
@@ -30,14 +43,7 @@ jobs:
         printf "$CONFIG" > conda_build_config.yaml
         BASE=$(conda info --base)
         printf "$CONFIG" > "$BASE/conda_build_config.yaml"
-        echo "=== ~/conda_build_config.yaml ===" && cat ~/conda_build_config.yaml
-        echo "=== ./conda_build_config.yaml ===" && cat conda_build_config.yaml
-        echo "=== conda config conda_build ===" && conda config --show conda_build || true
-        echo "=== ~/.condarc ===" && cat ~/.condarc 2>/dev/null || echo "(not found)"
-
-    - name: Debug variant with --debug
-      shell: bash -el {0}
-      run: conda build recipe -m .ci_support/win_64_.yaml -c conda-forge --debug 2>&1 | grep -iE "c_compiler|variant_config|exclusive|config_file|compiler|loading config" | head -50 || true
+        echo "Written to ~/conda_build_config.yaml, ./conda_build_config.yaml, and $BASE/conda_build_config.yaml"
 
     - name: Build m4rie (win-64)
       shell: bash -el {0}
