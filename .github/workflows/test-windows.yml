@@ -20,20 +20,14 @@ jobs:
 
     - name: Install conda-build
       shell: bash -el {0}
-      run: |
-        conda install -n base -c conda-forge conda-build conda-forge-pinning
+      run: conda install -n base -c conda-forge conda-build conda-forge-pinning
 
     - name: Create system-level conda_build_config
       shell: bash -el {0}
       run: |
         mkdir -p "$CONDA_PREFIX/conda-build"
-        cat > "$CONDA_PREFIX/conda-build/conda_build_config.yaml" << 'EOF'
-c_compiler:
-- vs2022
-target_platform:
-- win-64
-EOF
-        echo "Written to: $CONDA_PREFIX/conda-build/conda_build_config.yaml"
+        printf 'c_compiler:\n- vs2022\ntarget_platform:\n- win-64\n' \
+          > "$CONDA_PREFIX/conda-build/conda_build_config.yaml"
         cat "$CONDA_PREFIX/conda-build/conda_build_config.yaml"
 
     - name: Diagnose variant resolution
@@ -50,5 +44,4 @@ EOF
 
     - name: Build m4rie (win-64)
       shell: bash -el {0}
-      run: |
-        conda build recipe -m .ci_support/win_64_.yaml -c conda-forge --no-anaconda-upload
+      run: conda build recipe -m .ci_support/win_64_.yaml -c conda-forge --no-anaconda-upload
