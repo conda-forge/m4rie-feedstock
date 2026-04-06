@@ -22,40 +22,22 @@ jobs:
       shell: bash -el {0}
       run: conda install -n base -c conda-forge conda-build conda-forge-pinning
 
-    - name: Inspect conda config and write user-level config
+    - name: Write compiler config to all locations
       shell: bash -el {0}
       run: |
-        echo "=== conda config --show conda_build ==="
-        conda config --show conda_build || true
-        echo "=== ~/.condarc ==="
-        cat ~/.condarc 2>/dev/null || echo "(not found)"
-        echo "=== ~/conda_build_config.yaml ==="
-        cat ~/conda_build_config.yaml 2>/dev/null || echo "(not found)"
-        echo "=== writing to ~/conda_build_config.yaml ==="
-        printf 'c_compiler:\n- vs2022\ntarget_platform:\n- win-64\n' > ~/conda_build_config.yaml
-        cat ~/conda_build_config.yaml
-        echo "=== also writing to cwd ==="
-        printf 'c_compiler:\n- vs2022\ntarget_platform:\n- win-64\n' > conda_build_config.yaml
-        cat conda_build_config.yaml
+        CONFIG='c_compiler:\n- vs2022\ntarget_platform:\n- win-64\n'
+        printf "$CONFIG" > ~/conda_build_config.yaml
+        printf "$CONFIG" > conda_build_config.yaml
+        BASE=$(conda info --base)
+        printf "$CONFIG" > "$BASE/conda_build_config.yaml"
+        echo "=== ~/conda_build_config.yaml ===" && cat ~/conda_build_config.yaml
+        echo "=== ./conda_build_config.yaml ===" && cat conda_build_config.yaml
+        echo "=== conda config conda_build ===" && conda config --show conda_build || true
+        echo "=== ~/.condarc ===" && cat ~/.condarc 2>/dev/null || echo "(not found)"
 
-    - name: Debug conda-build variant loading
+    - name: Debug variant with --debug
       shell: bash -el {0}
-      run: |
-        echo "=== config files that would be loaded ==="
-        python - << 'PYEOF'
-import sys, os
-sys.path.insert(0, os.path.join(os.environ['CONDA_PREFIX'], 'Lib', 'site-packages'))
-from conda_build import variants, config as cbconfig
-cfg = cbconfig.Config(variant_config_files=['.ci_support/win_64_.yaml'])
-files = variants.find_config_files('recipe', cfg)
-print("Config files found:", files)
-for f in files:
-    print(f"\n--- {f} ---")
-    with open(f) as fh:
-        print(fh.read())
-PYEOF
-        echo "=== conda-build --debug render ==="
-        conda build recipe -m .ci_support/win_64_.yaml -c conda-forge --debug 2>&1 | grep -iE "c_compiler|variant|config_file|loading|compiler" | head -40 || true
+      run: conda build recipe -m .ci_support/win_64_.yaml -c conda-forge --debug 2>&1 | grep -iE "c_compiler|variant_config|exclusive|config_file|compiler|loading config" | head -50 || true
 
     - name: Build m4rie (win-64)
       shell: bash -el {0}
