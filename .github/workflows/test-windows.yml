@@ -18,25 +18,35 @@ jobs:
         channels: conda-forge
         channel-priority: strict
 
-    - name: Install conda-build and conda-forge-ci-setup
+    - name: Install conda-build
       shell: bash -el {0}
       run: |
-        conda install -n base -c conda-forge conda-build conda-forge-ci-setup conda-forge-pinning
+        conda install -n base -c conda-forge conda-build conda-forge-pinning
 
-    - name: Set up conda-forge build environment
+    - name: Create system-level conda_build_config
       shell: bash -el {0}
       run: |
-        setup_conda_rc . recipe .ci_support/win_64_.yaml
+        mkdir -p "$CONDA_PREFIX/conda-build"
+        cat > "$CONDA_PREFIX/conda-build/conda_build_config.yaml" << 'EOF'
+c_compiler:
+- vs2022
+target_platform:
+- win-64
+EOF
+        echo "Written to: $CONDA_PREFIX/conda-build/conda_build_config.yaml"
+        cat "$CONDA_PREFIX/conda-build/conda_build_config.yaml"
 
     - name: Diagnose variant resolution
       shell: bash -el {0}
       run: |
         echo "=== conda-build version ==="
         conda build --version
-        echo "=== conda_build_config.yaml (non-pkgs) ==="
-        find "$CONDA_PREFIX" -name "conda_build_config.yaml" 2>/dev/null | grep -v pkgs || echo "none found"
+        echo "=== .ci_support/win_64_.yaml ==="
+        cat .ci_support/win_64_.yaml
+        echo "=== conda_build_config.yaml locations (non-pkgs) ==="
+        find "$CONDA_PREFIX" -name "conda_build_config.yaml" 2>/dev/null | grep -v pkgs
         echo "=== conda render ==="
-        conda render recipe -m .ci_support/win_64_.yaml -c conda-forge 2>&1 | grep -E "compiler|vs2022|c_win|requirements" || true
+        conda render recipe -m .ci_support/win_64_.yaml -c conda-forge 2>&1 | head -60 || true
 
     - name: Build m4rie (win-64)
       shell: bash -el {0}
