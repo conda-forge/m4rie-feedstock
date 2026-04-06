@@ -2,11 +2,24 @@
 set -euo pipefail
 
 if [[ "${target_platform}" == win* ]]; then
-    # On Windows, conda expects headers/libs under $PREFIX/Library.
-    # conda-build sets CYGWIN_PREFIX=/cygdrive/c/bld/..._h_env (Cygwin format).
-    # Strip /cygdrive to get MSYS2 format: /c/bld/..._h_env
-    POSIX_PREFIX="${CYGWIN_PREFIX/\/cygdrive/}"
-    INSTALL_PREFIX="${POSIX_PREFIX}/Library"
+    # Debug: show what conda-build set
+    echo "=== PATH DIAGNOSTICS ==="
+    echo "PREFIX=${PREFIX:-UNSET}"
+    echo "LIBRARY_PREFIX=${LIBRARY_PREFIX:-UNSET}"
+    echo "CYGWIN_PREFIX=${CYGWIN_PREFIX:-UNSET}"
+    echo "CC=${CC:-UNSET}"
+    echo "========================"
+
+    # Use Python (always available) to convert Windows path to POSIX for autotools.
+    # LIBRARY_PREFIX=C:\bld\...\Library  ->  /c/bld/.../Library
+    INSTALL_PREFIX=$(python -c "
+import os
+p = os.environ['LIBRARY_PREFIX'].replace('\\\\', '/')
+drive, rest = p.split(':', 1)
+print('/' + drive.lower() + rest)
+")
+    echo "INSTALL_PREFIX=${INSTALL_PREFIX}"
+
     export CFLAGS="-O2 -g ${CFLAGS:-} -L${INSTALL_PREFIX}/lib"
     ./configure --prefix="${INSTALL_PREFIX}" --libdir="${INSTALL_PREFIX}/lib"
 else
