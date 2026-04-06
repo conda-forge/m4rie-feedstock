@@ -23,17 +23,15 @@ jobs:
       shell: bash -el {0}
       run: conda install -n base -c conda-forge conda-build conda-forge-pinning
 
-    - name: Diagnose platform and variant
+    - name: Inspect installed conda-build internals
       shell: bash -el {0}
       run: |
-        echo "=== conda-build version ==="
-        conda build --version
-        echo "=== config.platform and subdir ==="
-        python -c "from conda_build.config import Config; c=Config(); print('platform:', repr(c.platform)); print('subdir:', repr(c.subdir))"
-        echo "=== native_compiler result ==="
-        python -c "from conda_build.config import Config; from conda_build.variants import native_compiler; c=Config(); print('native_compiler c:', native_compiler('c', c))"
-        echo "=== variant from -m file ==="
-        python -c "from conda_build import variants; from conda_build.config import Config; cfg=Config(variant_config_files=['.ci_support/win_64_.yaml']); files=variants.find_config_files('recipe', cfg); print('files:', files); v=variants.get_package_combined_spec(*[variants.parse_config_file(f, cfg) for f in files] or [{}]); print('c_compiler:', v.get('c_compiler'))"
+        echo "=== _target() source ==="
+        python -c "import inspect; from conda_build import jinja_context; print(inspect.getsource(jinja_context._target))"
+        echo "=== vars in conda_build.variants ==="
+        python -c "import conda_build.variants as v; print([x for x in dir(v) if not x.startswith('_')])"
+        echo "=== config.variant with -m file ==="
+        python -c "from conda_build.config import Config; c=Config(variant_config_files=['.ci_support/win_64_.yaml']); print('variant:', c.variant)"
 
     - name: Write compiler config to all locations
       shell: bash -el {0}
@@ -41,9 +39,6 @@ jobs:
         CONFIG='c_compiler:\n- vs2022\ntarget_platform:\n- win-64\n'
         printf "$CONFIG" > ~/conda_build_config.yaml
         printf "$CONFIG" > conda_build_config.yaml
-        BASE=$(conda info --base)
-        printf "$CONFIG" > "$BASE/conda_build_config.yaml"
-        echo "Written to ~/conda_build_config.yaml, ./conda_build_config.yaml, and $BASE/conda_build_config.yaml"
 
     - name: Build m4rie (win-64)
       shell: bash -el {0}
