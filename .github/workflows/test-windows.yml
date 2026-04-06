@@ -39,4 +39,4 @@ jobs:
 
     - name: Build m4rie (win-64)
       shell: bash -el {0}
-      run: conda build recipe -m .ci_support/win_64_.yaml -c conda-forge --no-anaconda-upload
+      run: conda build recipe -m .ci_support/win_64_.yaml -c conda-forge --no-anaconda-upload --croot C:/bld
