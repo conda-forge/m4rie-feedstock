@@ -22,10 +22,10 @@ requirements:
     - make         # [unix]
     - automake     # [unix]
     - gnuconfig    # [unix]
-    - m2-bash  # [win]
-    - m2-make  # [win]
+    - m2-bash        # [win]
+    - m2-make        # [win]
     - {{ compiler('c') }}  # [not win]
-    - m2w64-toolchain      # [win]
+    - vs2022_win-64  # [win]
     - {{ stdlib('c') }}    # [not win]
   host:
     - libpng

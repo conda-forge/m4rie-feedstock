@@ -21,7 +21,14 @@ jobs:
 
     - name: Install conda-build
       shell: bash -el {0}
-      run: conda install -n base -c conda-forge "conda-build<26" conda-forge-pinning
+      run: conda install -n base -c conda-forge conda-build conda-forge-pinning
+
+    - name: Install MinGW cross-compiler into base env
+      shell: bash -el {0}
+      run: |
+        conda install -n base -c conda-forge m2w64-gcc m2w64-binutils
+        echo "MinGW installed. Verifying..."
+        ls "$CONDA/Library/mingw-w64/bin/" | grep -E "gcc|ar$|ranlib" || echo "MinGW binaries not found at expected path"
 
     - name: Deep diagnostics
       shell: bash -el {0}
