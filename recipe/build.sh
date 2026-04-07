@@ -20,12 +20,10 @@ print('/' + drive.lower() + rest)
         export AR=x86_64-w64-mingw32-ar
         export RANLIB=x86_64-w64-mingw32-ranlib
         export STRIP=x86_64-w64-mingw32-strip
-        CONFIGURE_HOST="--host=x86_64-w64-mingw32"
         echo "Using MinGW cross-compiler: $(which x86_64-w64-mingw32-gcc)"
     else
         echo "WARNING: x86_64-w64-mingw32-gcc not found, falling back to gcc"
         export CC=gcc
-        CONFIGURE_HOST=""
     fi
 
     # Override CFLAGS completely — conda-build sets MSVC flags when vs2022_win-64
@@ -36,23 +34,21 @@ print('/' + drive.lower() + rest)
     export PKG_CONFIG_PATH="${INSTALL_PREFIX}/lib/pkgconfig"
     export PKG_CONFIG="pkg-config"
 
-    # Diagnostic: verify which expr is found and whether it supports \( \) BRE
-    # capture groups. If it prints "0" or fails, the PATH has a broken expr.
-    echo "expr binary: $(which expr 2>/dev/null || echo NOT_FOUND)"
-    echo "expr capture test: $(expr "x--prefix=${INSTALL_PREFIX}" : 'x[^=]*=\(.*\)' 2>&1 || true)"
-
-    # Fix: autoconf's configure extracts --prefix=VALUE via:
+    # MSYS2's /usr/bin/expr does not support POSIX BRE \( \) capture groups,
+    # so any option passed as --opt=VALUE has its value extracted as "0" by:
     #   ac_optarg=`expr "x$ac_option" : 'x[^=]*=\(.*\)'`
-    # If 'expr' in PATH doesn't support \( \) BRE capture groups (e.g. a
-    # Windows-native binary from the MinGW bin dir), this returns "0" and
-    # prefix becomes "0", triggering "expected an absolute directory" error.
-    #
-    # Using --prefix VALUE (space, no =) bypasses this expr call entirely:
-    # configure does  eval $ac_prev=\$ac_option  (direct assignment, no expr).
-    # shellcheck disable=SC2086
-    if bash ./configure ${CONFIGURE_HOST} \
-            --prefix "${INSTALL_PREFIX}" \
-            --libdir "${INSTALL_PREFIX}/lib"; then
+    # Using --opt VALUE (space, not =) makes configure do direct assignment
+    # with no expr call, bypassing the broken expr for ALL options.
+    # We use a bash array to safely handle the optional --host argument.
+    configure_args=(
+        --prefix "${INSTALL_PREFIX}"
+        --libdir "${INSTALL_PREFIX}/lib"
+    )
+    if [[ "${CC}" == x86_64-w64-mingw32-gcc ]]; then
+        configure_args+=(--host x86_64-w64-mingw32)
+    fi
+
+    if bash ./configure "${configure_args[@]}"; then
         echo "configure: OK"
     else
         echo "=== configure FAILED — config.log tail ==="
