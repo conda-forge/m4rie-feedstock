@@ -63,9 +63,15 @@ print(':'.join(p for p in parts if ' ' not in p and p))
         configure_args+=(--host x86_64-w64-mingw32)
     fi
 
-    # Use $BASH (the currently-running bash executable, always set by bash itself)
-    # rather than 'bash' as a command, since our PATH filter may have removed
-    # entries that 'bash' was resolved through.
+    # Set SHELL and CONFIG_SHELL to the current bash executable (no spaces in path).
+    # configure's line ~261 re-execs itself via: exec $SHELL "$0" "$@"
+    # If $SHELL is "/c/Program Files/Git/usr/bin/bash.exe" (has spaces), bash
+    # word-splits it and tries to exec "/c/Program" — which doesn't exist.
+    # $BASH is set by bash itself to the running executable's full path and is
+    # always a no-space m2-bash path, so it's safe to use for re-exec.
+    export SHELL="${BASH}"
+    export CONFIG_SHELL="${BASH}"
+
     if "${BASH}" ./configure "${configure_args[@]}"; then
         echo "configure: OK"
     else
