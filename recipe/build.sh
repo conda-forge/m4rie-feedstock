@@ -20,6 +20,9 @@ print('/' + drive.lower() + rest)
         export AR=x86_64-w64-mingw32-ar
         export RANLIB=x86_64-w64-mingw32-ranlib
         export STRIP=x86_64-w64-mingw32-strip
+        export NM=x86_64-w64-mingw32-nm
+        export DLLTOOL=x86_64-w64-mingw32-dlltool
+        export OBJDUMP=x86_64-w64-mingw32-objdump
         echo "Using MinGW cross-compiler: $(which x86_64-w64-mingw32-gcc)"
     else
         echo "WARNING: x86_64-w64-mingw32-gcc not found, falling back to gcc"
@@ -94,6 +97,15 @@ print('/' + drive.lower() + rest)
     export SHELL="${BASH}"
     export CONFIG_SHELL="${BASH}"
 
+    # Diagnose what m4ri provides — needed to understand whether libtool
+    # will be able to build a shared libm4rie.dll or only a static library.
+    echo "=== m4ri library files ==="
+    ls -la "${INSTALL_PREFIX}/lib/" | grep -i m4ri || echo "  (none in lib/)"
+    ls -la "${INSTALL_PREFIX}/bin/" | grep -i m4ri || echo "  (none in bin/)"
+    echo "=== m4ri pkg-config libs ==="
+    pkg-config --libs m4ri 2>&1 || true
+    echo "==="
+
     if "${BASH}" ./configure "${configure_args[@]}"; then
         echo "configure: OK"
     else
@@ -106,7 +118,14 @@ else
     ./configure --prefix="${PREFIX}" --libdir="${PREFIX}/lib"
 fi
 
-make -j${CPU_COUNT}
+# Use serial make on Windows: parallel make (-j4) triggers the libm4rie.la
+# link rule before all .lo files are ready, causing libtool to fail at the
+# x86_64-w64-mingw32-ar convenience-archive step with "command not found".
+if [[ "${target_platform}" == win* ]]; then
+    make
+else
+    make -j${CPU_COUNT}
+fi
 if [[ "${CONDA_BUILD_CROSS_COMPILATION}" != "1" && "${target_platform}" != win* ]]; then
     make check
 fi
