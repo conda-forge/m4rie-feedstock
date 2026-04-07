@@ -34,12 +34,27 @@ print('/' + drive.lower() + rest)
     export PKG_CONFIG_PATH="${INSTALL_PREFIX}/lib/pkgconfig"
     export PKG_CONFIG="pkg-config"
 
-    # MSYS2's /usr/bin/expr does not support POSIX BRE \( \) capture groups,
-    # so any option passed as --opt=VALUE has its value extracted as "0" by:
-    #   ac_optarg=`expr "x$ac_option" : 'x[^=]*=\(.*\)'`
-    # Using --opt VALUE (space, not =) makes configure do direct assignment
-    # with no expr call, bypassing the broken expr for ALL options.
-    # We use a bash array to safely handle the optional --host argument.
+    # Remove PATH entries containing spaces. Git for Windows tools appear at
+    # paths like "/c/Program Files/Git/usr/bin/mkdir", which configure stores
+    # unquoted and then bash word-splits on the space, causing every compiler
+    # feature test to fail with "/c/Program: No such file or directory".
+    export PATH=$(python -c "
+import sys
+parts = sys.argv[1].split(':')
+print(':'.join(p for p in parts if ' ' not in p and p))
+" "$PATH")
+
+    # Pre-set autoconf cache variables to bypass MSYS2 expr limitations.
+    # MSYS2's /usr/bin/expr returns 0 for BRE \( \) capture groups, causing
+    # EXEEXT and OBJEXT to be detected as "0" instead of ".exe" and "o",
+    # which makes all subsequent compiler feature checks fail (they look for
+    # "conftest.0" instead of "conftest.exe").
+    export ac_cv_exeext='.exe'
+    export ac_cv_objext='o'
+
+    # MSYS2's /usr/bin/expr also corrupts --opt=VALUE parsing in autoconf
+    # (returns 0 instead of VALUE). Use an array with space separators so
+    # configure does direct assignment (no expr call) for all options.
     configure_args=(
         --prefix "${INSTALL_PREFIX}"
         --libdir "${INSTALL_PREFIX}/lib"
