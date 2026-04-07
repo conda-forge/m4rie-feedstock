@@ -52,6 +52,20 @@ print('/' + drive.lower() + rest)
     export PATH="$_clean_path"
     unset _path_arr _clean_path _p
 
+    # Diagnostics: confirm key tools are reachable after PATH filter
+    echo "=== tool check after PATH filter ==="
+    for _t in sed expr grep make; do
+        if command -v "$_t" >/dev/null 2>&1; then
+            echo "  $_t: $(command -v "$_t")"
+        else
+            echo "  $_t: NOT FOUND"
+        fi
+    done
+    unset _t
+    echo "=== first 10 PATH entries ==="
+    printf '%s\n' "$PATH" | tr ':' '\n' | head -10
+    echo "==="
+
     # Pre-set autoconf cache variables to bypass MSYS2 expr limitations.
     # MSYS2's /usr/bin/expr returns 0 for BRE \( \) capture groups, causing
     # EXEEXT and OBJEXT to be detected as "0" instead of ".exe" and "o",
