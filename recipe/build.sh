@@ -46,8 +46,13 @@ print('/' + drive.lower() + rest)
     fi
     rm -f /tmp/_test_cc.c /tmp/_test_cc.exe
 
-    # Use 'bash ./configure' to bypass #!/bin/sh shebang resolution issues
-    # in m2-bash's minimal MSYS2 environment.
+    # CONFIG_SHELL tells autoconf's configure to use the currently-running bash
+    # directly, skipping its shell self-test/re-exec phase. Without this,
+    # configure may try to re-exec with $SHELL (which is broken in the conda
+    # Windows build env), crashing before it even creates config.log.
+    export CONFIG_SHELL="${BASH}"
+    echo "CONFIG_SHELL=${CONFIG_SHELL}"
+
     # shellcheck disable=SC2086
     if ! bash ./configure ${CONFIGURE_HOST} \
             --prefix="${INSTALL_PREFIX}" \
