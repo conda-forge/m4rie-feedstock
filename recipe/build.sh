@@ -63,7 +63,10 @@ print(':'.join(p for p in parts if ' ' not in p and p))
         configure_args+=(--host x86_64-w64-mingw32)
     fi
 
-    if bash ./configure "${configure_args[@]}"; then
+    # Use $BASH (the currently-running bash executable, always set by bash itself)
+    # rather than 'bash' as a command, since our PATH filter may have removed
+    # entries that 'bash' was resolved through.
+    if "${BASH}" ./configure "${configure_args[@]}"; then
         echo "configure: OK"
     else
         echo "=== configure FAILED — config.log tail ==="
