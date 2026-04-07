@@ -38,11 +38,19 @@ print('/' + drive.lower() + rest)
     # paths like "/c/Program Files/Git/usr/bin/mkdir", which configure stores
     # unquoted and then bash word-splits on the space, causing every compiler
     # feature test to fail with "/c/Program: No such file or directory".
-    export PATH=$(python -c "
-import sys
-parts = sys.argv[1].split(':')
-print(':'.join(p for p in parts if ' ' not in p and p))
-" "$PATH")
+    # Use pure bash — passing $PATH as an argument to native Windows Python
+    # triggers MSYS2's auto-conversion from POSIX (:) to Windows (;) format,
+    # which breaks the split and wipes everything from PATH.
+    IFS=: read -ra _path_arr <<< "$PATH"
+    _clean_path=""
+    for _p in "${_path_arr[@]}"; do
+        case "$_p" in
+            *\ *|'') ;;
+            *) _clean_path="${_clean_path:+$_clean_path:}$_p" ;;
+        esac
+    done
+    export PATH="$_clean_path"
+    unset _path_arr _clean_path _p
 
     # Pre-set autoconf cache variables to bypass MSYS2 expr limitations.
     # MSYS2's /usr/bin/expr returns 0 for BRE \( \) capture groups, causing
