@@ -15,7 +15,7 @@ print('/' + drive.lower() + rest)
 ")
     echo "INSTALL_PREFIX=${INSTALL_PREFIX}"
 
-    # Locate the MinGW-w64 cross-compiler
+    # Locate the MinGW-w64 cross-compiler from m2w64-toolchain
     if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
         export CC=x86_64-w64-mingw32-gcc
         export AR=x86_64-w64-mingw32-ar
@@ -29,16 +29,6 @@ print('/' + drive.lower() + rest)
         CONFIGURE_HOST=""
     fi
 
-    # Diagnostics
-    echo "=== pwd ==="
-    pwd
-    echo "=== configure exists? ==="
-    ls -la configure 2>&1 || echo "ERROR: configure script not found"
-    echo "=== PATH (first 10) ==="
-    echo "$PATH" | tr ':' '\n' | head -10
-
-    # Separate CFLAGS/CPPFLAGS/LDFLAGS for correct cross-compilation behaviour.
-    # Use bash ./configure (not ./configure) to bypass MSYS2 execute-bit issues.
     export CFLAGS="-O2 -g ${CFLAGS:-}"
     export CPPFLAGS="-I${INSTALL_PREFIX}/include ${CPPFLAGS:-}"
     export LDFLAGS="-L${INSTALL_PREFIX}/lib ${LDFLAGS:-}"
@@ -46,7 +36,7 @@ print('/' + drive.lower() + rest)
     export PKG_CONFIG="pkg-config"
 
     # shellcheck disable=SC2086
-    bash ./configure ${CONFIGURE_HOST} \
+    ./configure ${CONFIGURE_HOST} \
         --prefix="${INSTALL_PREFIX}" \
         --libdir="${INSTALL_PREFIX}/lib"
 else
