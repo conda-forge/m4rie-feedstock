@@ -17,13 +17,16 @@ print('/' + drive.lower() + rest)
     # Locate the MinGW-w64 cross-compiler
     if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
         export CC=x86_64-w64-mingw32-gcc
-        export AR=x86_64-w64-mingw32-ar
-        export RANLIB=x86_64-w64-mingw32-ranlib
-        export STRIP=x86_64-w64-mingw32-strip
-        export NM=x86_64-w64-mingw32-nm
-        export DLLTOOL=x86_64-w64-mingw32-dlltool
-        export OBJDUMP=x86_64-w64-mingw32-objdump
+        # Use full POSIX paths so libtool can invoke these tools without
+        # relying on PATH lookup inside its shell sub-invocations.
+        export AR=$(command -v x86_64-w64-mingw32-ar)
+        export RANLIB=$(command -v x86_64-w64-mingw32-ranlib)
+        export STRIP=$(command -v x86_64-w64-mingw32-strip)
+        export NM=$(command -v x86_64-w64-mingw32-nm)
+        export DLLTOOL=$(command -v x86_64-w64-mingw32-dlltool)
+        export OBJDUMP=$(command -v x86_64-w64-mingw32-objdump)
         echo "Using MinGW cross-compiler: $(which x86_64-w64-mingw32-gcc)"
+        echo "AR=${AR}  RANLIB=${RANLIB}"
     else
         echo "WARNING: x86_64-w64-mingw32-gcc not found, falling back to gcc"
         export CC=gcc
@@ -108,6 +111,22 @@ print('/' + drive.lower() + rest)
 
     if "${BASH}" ./configure "${configure_args[@]}"; then
         echo "configure: OK"
+
+        # Show what configure stored in libtool for the cross-tools.
+        echo "=== libtool AR/NM/RANLIB assignments ==="
+        grep -E "^(AR|NM|RANLIB|DLLTOOL|STRIP|OBJDUMP)=" ./libtool | head -10
+
+        # libtool searches for libm4ri.dll.a to detect m4ri as a shared library.
+        # conda-forge's m4ri package (built with MinGW+libtool) ships m4ri.lib
+        # (the libtool-generated MSVC-compat import library) but omits libm4ri.dll.a.
+        # Provide libm4ri.dll.a so libtool's func_cygming_*_implib_p checks succeed
+        # without falling back to func_cygming_dll_for_implib_fallback (which
+        # calls AR and fails when ar can't find the file).
+        if [[ -f "${INSTALL_PREFIX}/lib/m4ri.lib" && ! -f "${INSTALL_PREFIX}/lib/libm4ri.dll.a" ]]; then
+            echo "=== Creating libm4ri.dll.a (copy of m4ri.lib) for libtool detection ==="
+            cp "${INSTALL_PREFIX}/lib/m4ri.lib" "${INSTALL_PREFIX}/lib/libm4ri.dll.a"
+            echo "  created ${INSTALL_PREFIX}/lib/libm4ri.dll.a"
+        fi
     else
         echo "=== configure FAILED — config.log tail ==="
         tail -80 config.log 2>/dev/null || echo "(no config.log found)"
@@ -118,11 +137,12 @@ else
     ./configure --prefix="${PREFIX}" --libdir="${PREFIX}/lib"
 fi
 
-# Use serial make on Windows: parallel make (-j4) triggers the libm4rie.la
-# link rule before all .lo files are ready, causing libtool to fail at the
-# x86_64-w64-mingw32-ar convenience-archive step with "command not found".
+# Serial make on Windows.  Explicit -j1 overrides any MAKEFLAGS=-jN that
+# the environment or conda-build might have set, ensuring no parallel jobs
+# race the libm4rie.la link rule against still-compiling .lo files.
 if [[ "${target_platform}" == win* ]]; then
-    make
+    unset MAKEFLAGS
+    make -j1
 else
     make -j${CPU_COUNT}
 fi
