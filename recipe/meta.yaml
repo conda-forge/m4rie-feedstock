@@ -45,7 +45,7 @@ test:
     - test -f ${PREFIX}/lib/lib{{ name }}.so                           # [linux]
     - if not exist %LIBRARY_PREFIX%\include\m4rie\m4rie.h exit 1       # [win]
     - if not exist %LIBRARY_PREFIX%\lib\lib{{ name }}.a exit 1         # [win]
-    - if not exist %LIBRARY_PREFIX%\bin\lib{{ name }}.dll exit 1       # [win]
+    - if not exist %LIBRARY_PREFIX%\bin\lib{{ name }}-1.dll exit 1     # [win]
 
 about:
   home: https://github.com/malb/m4rie
