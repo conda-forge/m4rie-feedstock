@@ -15,7 +15,7 @@ print('/' + drive.lower() + rest)
 ")
     echo "INSTALL_PREFIX=${INSTALL_PREFIX}"
 
-    # Locate the MinGW-w64 cross-compiler from m2w64-toolchain
+    # Locate the MinGW-w64 cross-compiler
     if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
         export CC=x86_64-w64-mingw32-gcc
         export AR=x86_64-w64-mingw32-ar
@@ -29,16 +29,33 @@ print('/' + drive.lower() + rest)
         CONFIGURE_HOST=""
     fi
 
-    export CFLAGS="-O2 -g ${CFLAGS:-}"
-    export CPPFLAGS="-I${INSTALL_PREFIX}/include ${CPPFLAGS:-}"
-    export LDFLAGS="-L${INSTALL_PREFIX}/lib ${LDFLAGS:-}"
+    # Override CFLAGS completely — conda-build sets MSVC flags when vs2022_win-64
+    # is in build requirements; those flags are incompatible with MinGW.
+    export CFLAGS="-O2 -g"
+    export CPPFLAGS="-I${INSTALL_PREFIX}/include"
+    export LDFLAGS="-L${INSTALL_PREFIX}/lib"
     export PKG_CONFIG_PATH="${INSTALL_PREFIX}/lib/pkgconfig"
     export PKG_CONFIG="pkg-config"
 
+    # Quick sanity check: can the cross-compiler build a trivial program?
+    echo 'int main(void){return 0;}' > /tmp/_test_cc.c
+    if ${CC} ${CFLAGS} -o /tmp/_test_cc.exe /tmp/_test_cc.c 2>&1; then
+        echo "Compiler sanity test: OK"
+    else
+        echo "Compiler sanity test: FAILED"
+    fi
+    rm -f /tmp/_test_cc.c /tmp/_test_cc.exe
+
+    # Use 'bash ./configure' to bypass #!/bin/sh shebang resolution issues
+    # in m2-bash's minimal MSYS2 environment.
     # shellcheck disable=SC2086
-    ./configure ${CONFIGURE_HOST} \
-        --prefix="${INSTALL_PREFIX}" \
-        --libdir="${INSTALL_PREFIX}/lib"
+    if ! bash ./configure ${CONFIGURE_HOST} \
+            --prefix="${INSTALL_PREFIX}" \
+            --libdir="${INSTALL_PREFIX}/lib"; then
+        echo "=== configure FAILED — config.log tail ==="
+        tail -80 config.log 2>/dev/null || echo "(no config.log found)"
+        exit 1
+    fi
 else
     export CFLAGS="-O2 -g -fPIC ${CFLAGS:-} -L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib"
     ./configure --prefix="${PREFIX}" --libdir="${PREFIX}/lib"
