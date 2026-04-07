@@ -5,13 +5,14 @@ if [[ "${target_platform}" == win* ]]; then
     # MSYS2 bash may hang if /tmp doesn't exist
     mkdir -p /tmp
 
-    # PREFIX is unexpanded (%PREFIX%) in bash — use Python to get the real path
-    # from the Windows environment (correctly set by conda activate).
+    # Use the Windows-style path (C:/path) rather than MSYS2's POSIX form
+    # (/c/path). When CONFIG_SHELL triggers configure's re-exec, MSYS2
+    # converts POSIX paths in argv and can corrupt them (producing "0").
+    # A Windows-style path with forward slashes needs no conversion.
     INSTALL_PREFIX=$(python -c "
 import os
 p = os.environ['LIBRARY_PREFIX'].replace('\\\\', '/')
-drive, rest = p.split(':', 1)
-print('/' + drive.lower() + rest)
+print(p)
 ")
     echo "INSTALL_PREFIX=${INSTALL_PREFIX}"
 
@@ -37,26 +38,15 @@ print('/' + drive.lower() + rest)
     export PKG_CONFIG_PATH="${INSTALL_PREFIX}/lib/pkgconfig"
     export PKG_CONFIG="pkg-config"
 
-    # Quick sanity check: can the cross-compiler build a trivial program?
-    echo 'int main(void){return 0;}' > /tmp/_test_cc.c
-    if ${CC} ${CFLAGS} -o /tmp/_test_cc.exe /tmp/_test_cc.c 2>&1; then
-        echo "Compiler sanity test: OK"
-    else
-        echo "Compiler sanity test: FAILED"
-    fi
-    rm -f /tmp/_test_cc.c /tmp/_test_cc.exe
-
-    # CONFIG_SHELL tells autoconf's configure to use the currently-running bash
-    # directly, skipping its shell self-test/re-exec phase. Without this,
-    # configure may try to re-exec with $SHELL (which is broken in the conda
-    # Windows build env), crashing before it even creates config.log.
-    export CONFIG_SHELL="${BASH}"
-    echo "CONFIG_SHELL=${CONFIG_SHELL}"
-
+    # Trace the exact configure invocation so we can see what args it receives
+    set -x
     # shellcheck disable=SC2086
-    if ! bash ./configure ${CONFIGURE_HOST} \
+    if bash ./configure ${CONFIGURE_HOST} \
             --prefix="${INSTALL_PREFIX}" \
             --libdir="${INSTALL_PREFIX}/lib"; then
+        set +x
+    else
+        set +x
         echo "=== configure FAILED — config.log tail ==="
         tail -80 config.log 2>/dev/null || echo "(no config.log found)"
         exit 1
