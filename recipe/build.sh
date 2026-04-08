@@ -126,15 +126,12 @@ print('/' + drive.lower() + rest)
         #      __imp_sym AND sym stubs, satisfying the .refptr. reference.
         #      Without this, the link fails:
         #      "undefined reference to `m4ri_codebook'"
-        # pkg-config --variable=libdir gives the exact -L path libtool will search.
-        # libm4ri.dll.a must go there, not in INSTALL_PREFIX/lib (different path).
-        _m4ri_libdir=$(pkg-config --variable=libdir m4ri 2>/dev/null) || true
-        [[ -z "${_m4ri_libdir}" ]] && _m4ri_libdir="${INSTALL_PREFIX}/lib"
-        echo "m4ri libdir: ${_m4ri_libdir}"
-
-        _m4ri_dll=$(find "${_m4ri_libdir}" "${INSTALL_PREFIX}/lib" "${INSTALL_PREFIX}/bin" \
+        # INSTALL_PREFIX/lib is already on libtool's -L search path (it's the host
+        # env libdir). Write libm4ri.dll.a there so libtool can find it.
+        _m4ri_dll=$(find "${INSTALL_PREFIX}/lib" "${INSTALL_PREFIX}/bin" \
             -maxdepth 1 -name 'm4ri*.dll' -print -quit 2>/dev/null) || true
-        if [[ -n "${_m4ri_dll}" && ! -f "${_m4ri_libdir}/libm4ri.dll.a" ]]; then
+        echo "m4ri DLL found: ${_m4ri_dll:-none}"
+        if [[ -n "${_m4ri_dll}" && ! -f "${INSTALL_PREFIX}/lib/libm4ri.dll.a" ]]; then
             echo "=== Creating libm4ri.dll.a from ${_m4ri_dll} ==="
             _m4ri_dllname=$(basename "${_m4ri_dll}")
 
@@ -171,18 +168,18 @@ m4ri_cantor_basis"
                 echo "  ${_data_cnt} symbol(s) marked DATA:"
                 grep ' DATA$' /tmp/m4ri.def | head -5 || echo "  (none)"
                 dlltool -d /tmp/m4ri.def \
-                        -l "${_m4ri_libdir}/libm4ri.dll.a" && \
+                        -l "${INSTALL_PREFIX}/lib/libm4ri.dll.a" && \
                     echo "  created libm4ri.dll.a" || {
                     echo "  dlltool failed — falling back to cp m4ri.lib"
-                    cp "${_m4ri_libdir}/m4ri.lib" \
-                       "${_m4ri_libdir}/libm4ri.dll.a"
+                    cp "${INSTALL_PREFIX}/lib/m4ri.lib" \
+                       "${INSTALL_PREFIX}/lib/libm4ri.dll.a"
                 }
             else
                 echo "  WARNING: objdump found no exports; copying m4ri.lib"
-                cp "${_m4ri_libdir}/m4ri.lib" \
-                   "${_m4ri_libdir}/libm4ri.dll.a"
+                cp "${INSTALL_PREFIX}/lib/m4ri.lib" \
+                   "${INSTALL_PREFIX}/lib/libm4ri.dll.a"
             fi
-            unset _m4ri_libdir _m4ri_dll _m4ri_dllname _m4ri_exports _known_data \
+            unset _m4ri_dll _m4ri_dllname _m4ri_exports _known_data \
                   _nm_data _all_data _data_cnt _sym
         fi
     else
