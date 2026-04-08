@@ -126,61 +126,78 @@ print('/' + drive.lower() + rest)
         #      __imp_sym AND sym stubs, satisfying the .refptr. reference.
         #      Without this, the link fails:
         #      "undefined reference to `m4ri_codebook'"
-        # INSTALL_PREFIX/lib is already on libtool's -L search path (it's the host
-        # env libdir). Write libm4ri.dll.a there so libtool can find it.
-        _m4ri_dll=$(find "${INSTALL_PREFIX}/lib" "${INSTALL_PREFIX}/bin" \
-            -maxdepth 1 -name 'm4ri*.dll' -print -quit 2>/dev/null) || true
-        echo "m4ri DLL found: ${_m4ri_dll:-none}"
-        if [[ -n "${_m4ri_dll}" && ! -f "${INSTALL_PREFIX}/lib/libm4ri.dll.a" ]]; then
-            echo "=== Creating libm4ri.dll.a from ${_m4ri_dll} ==="
-            _m4ri_dllname=$(basename "${_m4ri_dll}")
+        # Create libm4ri.dll.a so libtool can find m4ri as a shared dep.
+        # Uses temp files instead of mapfile/process-substitution (fragile on MSYS2).
+        _m4ri_implib="${INSTALL_PREFIX}/lib/libm4ri.dll.a"
+        if [[ ! -f "${_m4ri_implib}" ]]; then
+            # Find the m4ri DLL via glob (no subprocess/pipe, safe under set -e)
+            _m4ri_dll=""
+            for _f in "${INSTALL_PREFIX}/lib"/m4ri*.dll \
+                       "${INSTALL_PREFIX}/bin"/m4ri*.dll; do
+                [[ -f "${_f}" ]] && _m4ri_dll="${_f}" && break
+            done
+            echo "=== m4ri DLL: ${_m4ri_dll:-NOT FOUND} ==="
 
-            # Extract exported symbol names from the PE export address table
-            mapfile -t _m4ri_exports < <(
-                objdump -p "${_m4ri_dll}" 2>/dev/null | \
-                    awk '/\[Ordinal\/Name Pointer\] Table/{f=1;next}
-                         f && /^\s+\[/{sub(/^.*\] /,""); gsub(/\r/,""); if (length>0) print}
-                         f && !/^\s/{f=0}'
-            )
-            echo "  exports found: ${#_m4ri_exports[@]}"
+            if [[ -n "${_m4ri_dll}" ]]; then
+                _m4ri_dllname=$(basename "${_m4ri_dll}")
 
-            # Known m4ri DATA exports (global arrays) that require DATA annotation.
-            # nm type D (initialised data) / B (BSS) is also detected automatically.
-            _known_data="m4ri_codebook
-m4ri_cantor_basis"
-            _nm_data=$(nm "${_m4ri_dll}" 2>/dev/null | awk '$2~/^[DB]$/{print $3}')
-            _all_data=$(printf '%s\n%s\n' "${_known_data}" "${_nm_data}" | sort -u)
+                # Extract PE exports to a temp file; || true prevents set -e exit
+                objdump -p "${_m4ri_dll}" 2>/dev/null \
+                    | awk '/\[Ordinal\/Name Pointer\] Table/{f=1;next}
+                           f && /^\s+\[/{sub(/^.*\] /,""); gsub(/\r/,""); if (length>0) print}
+                           f && !/^\s/{f=0}' \
+                    > /tmp/m4ri_exports.txt || true
+                _export_count=$(wc -l < /tmp/m4ri_exports.txt 2>/dev/null || echo 0)
+                # Trim whitespace from wc output
+                _export_count="${_export_count// /}"
+                echo "  exports found: ${_export_count}"
 
-            if [[ ${#_m4ri_exports[@]} -gt 0 ]]; then
+                # Build .def file with DATA annotation for array symbols
                 {
                     printf 'LIBRARY %s\n' "${_m4ri_dllname}"
                     printf 'EXPORTS\n'
-                    for _sym in "${_m4ri_exports[@]}"; do
+                    # nm-detected data symbols (type D=init-data, B=BSS)
+                    _nm_data=$(nm "${_m4ri_dll}" 2>/dev/null \
+                        | awk '$2~/^[DB]$/{print $3}') || true
+                    while IFS= read -r _sym || [[ -n "${_sym}" ]]; do
                         [[ -z "${_sym}" ]] && continue
-                        if printf '%s\n' "${_all_data}" | grep -qx "${_sym}"; then
-                            printf '  %s DATA\n' "${_sym}"
-                        else
-                            printf '  %s\n' "${_sym}"
-                        fi
-                    done
+                        # Check if this symbol is a known or nm-detected data symbol
+                        case "${_sym}" in
+                            m4ri_codebook|m4ri_cantor_basis)
+                                printf '  %s DATA\n' "${_sym}" ;;
+                            *)
+                                if printf '%s\n' "${_nm_data}" \
+                                        | grep -qx "${_sym}" 2>/dev/null; then
+                                    printf '  %s DATA\n' "${_sym}"
+                                else
+                                    printf '  %s\n' "${_sym}"
+                                fi ;;
+                        esac
+                    done < /tmp/m4ri_exports.txt
                 } > /tmp/m4ri.def
-                _data_cnt=$(grep -c ' DATA$' /tmp/m4ri.def 2>/dev/null || echo 0)
-                echo "  ${_data_cnt} symbol(s) marked DATA:"
+                echo "  DATA entries in .def:"
                 grep ' DATA$' /tmp/m4ri.def | head -5 || echo "  (none)"
-                dlltool -d /tmp/m4ri.def \
-                        -l "${INSTALL_PREFIX}/lib/libm4ri.dll.a" && \
-                    echo "  created libm4ri.dll.a" || {
-                    echo "  dlltool failed — falling back to cp m4ri.lib"
-                    cp "${INSTALL_PREFIX}/lib/m4ri.lib" \
-                       "${INSTALL_PREFIX}/lib/libm4ri.dll.a"
-                }
+
+                dlltool -d /tmp/m4ri.def -l "${_m4ri_implib}" \
+                    && echo "  dlltool: created ${_m4ri_implib}" \
+                    || {
+                        echo "  dlltool failed; copying m4ri.lib as fallback"
+                        cp "${INSTALL_PREFIX}/lib/m4ri.lib" "${_m4ri_implib}" || true
+                    }
             else
-                echo "  WARNING: objdump found no exports; copying m4ri.lib"
-                cp "${INSTALL_PREFIX}/lib/m4ri.lib" \
-                   "${INSTALL_PREFIX}/lib/libm4ri.dll.a"
+                echo "  WARNING: no m4ri DLL found; copying m4ri.lib"
+                cp "${INSTALL_PREFIX}/lib/m4ri.lib" "${_m4ri_implib}" || true
             fi
-            unset _m4ri_dll _m4ri_dllname _m4ri_exports _known_data \
-                  _nm_data _all_data _data_cnt _sym
+
+            # Confirm — exit loudly if still missing
+            if [[ -f "${_m4ri_implib}" ]]; then
+                echo "  libm4ri.dll.a: $(ls -la "${_m4ri_implib}")"
+            else
+                echo "ERROR: could not create ${_m4ri_implib}" >&2
+                exit 1
+            fi
+            unset _m4ri_implib _m4ri_dll _m4ri_dllname _export_count \
+                  _nm_data _sym _f
         fi
     else
         echo "=== configure FAILED — config.log tail ==="
