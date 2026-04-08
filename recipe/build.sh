@@ -126,7 +126,7 @@ print('/' + drive.lower() + rest)
         #      __imp_sym AND sym stubs, satisfying the .refptr. reference.
         #      Without this, the link fails:
         #      "undefined reference to `m4ri_codebook'"
-        _m4ri_dll=$(ls "${INSTALL_PREFIX}/bin/"m4ri*.dll "${INSTALL_PREFIX}/lib/"m4ri*.dll 2>/dev/null | head -1)
+        _m4ri_dll=$(find "${INSTALL_PREFIX}/bin" "${INSTALL_PREFIX}/lib" -maxdepth 1 -name 'm4ri*.dll' 2>/dev/null | head -1)
         if [[ -n "${_m4ri_dll}" && ! -f "${INSTALL_PREFIX}/lib/libm4ri.dll.a" ]]; then
             echo "=== Creating libm4ri.dll.a from ${_m4ri_dll} ==="
             _m4ri_dllname=$(basename "${_m4ri_dll}")
