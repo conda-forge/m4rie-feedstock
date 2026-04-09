@@ -12,23 +12,19 @@ p = os.environ['LIBRARY_PREFIX'].replace('\\\\', '/')
 drive, rest = p.split(':', 1)
 print('/' + drive.lower() + rest)
 ")
-    echo "INSTALL_PREFIX=${INSTALL_PREFIX}"
 
-    # Locate the MinGW-w64 cross-compiler
+    # Locate the MinGW-w64 cross-compiler installed in the conda base env
     if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
         export CC=x86_64-w64-mingw32-gcc
-        # Use full POSIX paths so libtool can invoke these tools without
-        # relying on PATH lookup inside its shell sub-invocations.
+        # Leave AR/RANLIB/etc. unset so configure auto-detects the real MinGW
+        # tools (m2w64-binutils provides ar/ranlib without the cross-prefix).
         export AR=$(command -v x86_64-w64-mingw32-ar)
         export RANLIB=$(command -v x86_64-w64-mingw32-ranlib)
         export STRIP=$(command -v x86_64-w64-mingw32-strip)
         export NM=$(command -v x86_64-w64-mingw32-nm)
         export DLLTOOL=$(command -v x86_64-w64-mingw32-dlltool)
         export OBJDUMP=$(command -v x86_64-w64-mingw32-objdump)
-        echo "Using MinGW cross-compiler: $(which x86_64-w64-mingw32-gcc)"
-        echo "AR=${AR}  RANLIB=${RANLIB}"
     else
-        echo "WARNING: x86_64-w64-mingw32-gcc not found, falling back to gcc"
         export CC=gcc
     fi
 
@@ -58,20 +54,6 @@ print('/' + drive.lower() + rest)
     export PATH="$_clean_path"
     unset _path_arr _clean_path _p
 
-    # Diagnostics: confirm key tools are reachable after PATH filter
-    echo "=== tool check after PATH filter ==="
-    for _t in sed expr grep make; do
-        if command -v "$_t" >/dev/null 2>&1; then
-            echo "  $_t: $(command -v "$_t")"
-        else
-            echo "  $_t: NOT FOUND"
-        fi
-    done
-    unset _t
-    echo "=== first 10 PATH entries ==="
-    printf '%s\n' "$PATH" | tr ':' '\n' | head -10
-    echo "==="
-
     # Pre-set autoconf cache variables to bypass MSYS2 expr limitations.
     # MSYS2's /usr/bin/expr returns 0 for BRE \( \) capture groups, causing
     # EXEEXT and OBJEXT to be detected as "0" instead of ".exe" and "o",
@@ -100,115 +82,82 @@ print('/' + drive.lower() + rest)
     export SHELL="${BASH}"
     export CONFIG_SHELL="${BASH}"
 
-    # Diagnose what m4ri provides — needed to understand whether libtool
-    # will be able to build a shared libm4rie.dll or only a static library.
-    echo "=== m4ri library files ==="
-    ls -la "${INSTALL_PREFIX}/lib/" | grep -i m4ri || echo "  (none in lib/)"
-    ls -la "${INSTALL_PREFIX}/bin/" | grep -i m4ri || echo "  (none in bin/)"
-    echo "=== m4ri pkg-config libs ==="
-    pkg-config --libs m4ri 2>&1 || true
-    echo "==="
-
-    if "${BASH}" ./configure "${configure_args[@]}"; then
-        echo "configure: OK"
-
-        # Show what configure stored in libtool for the cross-tools.
-        echo "=== libtool AR/NM/RANLIB assignments ==="
-        grep -E "^(AR|NM|RANLIB|DLLTOOL|STRIP|OBJDUMP)=" ./libtool | head -10
-
-        # conda-forge's m4ri ships m4ri.lib + m4ri-2.dll but NOT libm4ri.dll.a.
-        # Build a proper MinGW import library so that:
-        #  (a) libtool finds m4ri as a shared-library dependency via the normal
-        #      func_cygming_*_implib_p path (not the fallback ar-calling path).
-        #  (b) the linker resolves ALL symbols, including DATA exports such as
-        #      m4ri_codebook.  MinGW's .refptr. mechanism references a data symbol
-        #      by its direct name; dlltool's DATA annotation generates both
-        #      __imp_sym AND sym stubs, satisfying the .refptr. reference.
-        #      Without this, the link fails:
-        #      "undefined reference to `m4ri_codebook'"
-        # Create libm4ri.dll.a so libtool finds m4ri as a shared dependency.
-        # Strategy: extract symbol names from m4ri.lib (__imp_XXX stubs) using nm,
-        # then build a def file with DATA annotation for array symbols, then dlltool.
-        # This avoids parsing the PE export table (dlltool --output-def fails on
-        # MSVC-built DLLs with this toolchain).
-        _m4ri_implib="${INSTALL_PREFIX}/lib/libm4ri.dll.a"
-        _m4ri_dotlib="${INSTALL_PREFIX}/lib/m4ri.lib"
-        if [[ ! -f "${_m4ri_implib}" && -f "${_m4ri_dotlib}" ]]; then
-            # Find the DLL name for the LIBRARY line in the def file
-            _m4ri_dll=""
-            for _f in "${INSTALL_PREFIX}/lib"/m4ri*.dll \
-                       "${INSTALL_PREFIX}/bin"/m4ri*.dll; do
-                [[ -f "${_f}" ]] && _m4ri_dll="${_f}" && break
-            done
-            _m4ri_dllname=$(basename "${_m4ri_dll:-m4ri-2.dll}")
-            echo "=== Creating libm4ri.dll.a (dllname=${_m4ri_dllname}) ==="
-
-            # nm on the MSVC .lib file lists __imp_XXX symbols for every export.
-            # Strip the prefix to get plain symbol names.
-            nm "${_m4ri_dotlib}" 2>/dev/null \
-                | grep -o '__imp_[A-Za-z_][A-Za-z0-9_]*' \
-                | sed 's/__imp_//' \
-                | sort -u \
-                > /tmp/m4ri_syms.txt || true
-            _sym_count=$(wc -l < /tmp/m4ri_syms.txt 2>/dev/null || echo 0)
-            _sym_count="${_sym_count// /}"
-            echo "  symbols from m4ri.lib: ${_sym_count}"
-
-            # Detect data symbols via nm on the DLL (type D=init, B=BSS)
-            _nm_data=""
-            if [[ -n "${_m4ri_dll}" ]]; then
-                _nm_data=$(nm "${_m4ri_dll}" 2>/dev/null \
-                    | awk '$2~/^[DB]$/{print $3}') || true
-            fi
-
-            {
-                printf 'LIBRARY %s\n' "${_m4ri_dllname}"
-                printf 'EXPORTS\n'
-                while IFS= read -r _sym || [[ -n "${_sym}" ]]; do
-                    [[ -z "${_sym}" ]] && continue
-                    case "${_sym}" in
-                        m4ri_codebook|m4ri_cantor_basis)
-                            printf '  %s DATA\n' "${_sym}" ;;
-                        *)
-                            if [[ -n "${_nm_data}" ]] && \
-                               printf '%s\n' "${_nm_data}" | grep -qx "${_sym}"; then
-                                printf '  %s DATA\n' "${_sym}"
-                            else
-                                printf '  %s\n' "${_sym}"
-                            fi ;;
-                    esac
-                done < /tmp/m4ri_syms.txt
-                # Unconditionally append known data symbols (MSVC .lib sometimes
-                # omits data exports from the __imp_XXX section entirely).
-                printf '  m4ri_codebook DATA\n'
-                printf '  m4ri_cantor_basis DATA\n'
-            } > /tmp/m4ri.def
-            # Remove any non-DATA duplicate entries for the known data symbols
-            sed -i '/^  m4ri_codebook$\|^  m4ri_cantor_basis$/d' /tmp/m4ri.def || true
-            echo "  DATA entries:"
-            grep ' DATA$' /tmp/m4ri.def | head -5 || echo "  (none)"
-            echo "  def total lines: $(wc -l < /tmp/m4ri.def)"
-
-            dlltool -d /tmp/m4ri.def -l "${_m4ri_implib}" \
-                && echo "  dlltool: OK" \
-                || {
-                    echo "  dlltool failed; copying m4ri.lib"
-                    cp "${_m4ri_dotlib}" "${_m4ri_implib}" || true
-                }
-
-            if [[ -f "${_m4ri_implib}" ]]; then
-                echo "  $(ls -la "${_m4ri_implib}")"
-            else
-                echo "ERROR: could not create ${_m4ri_implib}" >&2
-                exit 1
-            fi
-            unset _m4ri_implib _m4ri_dotlib _m4ri_dll _m4ri_dllname \
-                  _sym_count _nm_data _sym _f
-        fi
-    else
+    if ! "${BASH}" ./configure "${configure_args[@]}"; then
         echo "=== configure FAILED — config.log tail ==="
         tail -80 config.log 2>/dev/null || echo "(no config.log found)"
         exit 1
+    fi
+
+    # conda-forge's m4ri ships m4ri.lib + m4ri-2.dll but NOT libm4ri.dll.a.
+    # Build a proper MinGW import library so libtool finds m4ri as a shared
+    # dependency.  Without it libtool falls back to static-only and emits:
+    #   "linker path does not have real file for library -lm4ri"
+    #
+    # Symbol extraction strategy: nm on m4ri.lib reads __imp_XXX stubs for
+    # all exported functions. dlltool --output-def fails on MSVC-built DLLs
+    # with this toolchain so we avoid it.
+    #
+    # DATA annotation: m4ri_codebook and m4ri_cantor_basis are global arrays.
+    # MinGW's .refptr. mechanism references them by direct name (not __imp_).
+    # dlltool generates the required direct-name stub only when the symbol is
+    # listed as "NAME DATA" in the def file.  The MSVC .lib omits these from
+    # its __imp_XXX section, so we append them unconditionally.
+    _m4ri_implib="${INSTALL_PREFIX}/lib/libm4ri.dll.a"
+    _m4ri_dotlib="${INSTALL_PREFIX}/lib/m4ri.lib"
+    if [[ ! -f "${_m4ri_implib}" && -f "${_m4ri_dotlib}" ]]; then
+        _m4ri_dll=""
+        for _f in "${INSTALL_PREFIX}/lib"/m4ri*.dll \
+                   "${INSTALL_PREFIX}/bin"/m4ri*.dll; do
+            [[ -f "${_f}" ]] && _m4ri_dll="${_f}" && break
+        done
+        _m4ri_dllname=$(basename "${_m4ri_dll:-m4ri-2.dll}")
+
+        nm "${_m4ri_dotlib}" 2>/dev/null \
+            | grep -o '__imp_[A-Za-z_][A-Za-z0-9_]*' \
+            | sed 's/__imp_//' \
+            | sort -u \
+            > /tmp/m4ri_syms.txt || true
+
+        # Detect additional data symbols via nm on the DLL (type D/B)
+        _nm_data=""
+        if [[ -n "${_m4ri_dll}" ]]; then
+            _nm_data=$(nm "${_m4ri_dll}" 2>/dev/null \
+                | awk '$2~/^[DB]$/{print $3}') || true
+        fi
+
+        {
+            printf 'LIBRARY %s\n' "${_m4ri_dllname}"
+            printf 'EXPORTS\n'
+            while IFS= read -r _sym || [[ -n "${_sym}" ]]; do
+                [[ -z "${_sym}" ]] && continue
+                case "${_sym}" in
+                    m4ri_codebook|m4ri_cantor_basis)
+                        printf '  %s DATA\n' "${_sym}" ;;
+                    *)
+                        if [[ -n "${_nm_data}" ]] && \
+                           printf '%s\n' "${_nm_data}" | grep -qx "${_sym}"; then
+                            printf '  %s DATA\n' "${_sym}"
+                        else
+                            printf '  %s\n' "${_sym}"
+                        fi ;;
+                esac
+            done < /tmp/m4ri_syms.txt
+            # Append known data symbols unconditionally — MSVC .lib omits them
+            # from the __imp_XXX section so nm doesn't find them above.
+            printf '  m4ri_codebook DATA\n'
+            printf '  m4ri_cantor_basis DATA\n'
+        } > /tmp/m4ri.def
+        # Remove any plain (non-DATA) duplicate entries for data symbols
+        sed -i '/^  m4ri_codebook$\|^  m4ri_cantor_basis$/d' /tmp/m4ri.def || true
+
+        dlltool -d /tmp/m4ri.def -l "${_m4ri_implib}" \
+            || { cp "${_m4ri_dotlib}" "${_m4ri_implib}" || true; }
+
+        [[ -f "${_m4ri_implib}" ]] \
+            || { echo "ERROR: could not create ${_m4ri_implib}" >&2; exit 1; }
+
+        unset _m4ri_implib _m4ri_dotlib _m4ri_dll _m4ri_dllname \
+              _nm_data _sym _f
     fi
 else
     export CFLAGS="-O2 -g -fPIC ${CFLAGS:-} -L${PREFIX}/lib -Wl,-rpath,${PREFIX}/lib"
@@ -228,8 +177,3 @@ if [[ "${CONDA_BUILD_CROSS_COMPILATION}" != "1" && "${target_platform}" != win* 
     make check
 fi
 make install
-if [[ "${target_platform}" == win* ]]; then
-    echo "=== installed m4rie files ==="
-    ls -la "${INSTALL_PREFIX}/lib/"*m4rie* 2>/dev/null || echo "  (none in lib)"
-    ls -la "${INSTALL_PREFIX}/bin/"*m4rie* 2>/dev/null || echo "  (none in bin)"
-fi
