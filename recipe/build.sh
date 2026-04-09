@@ -178,7 +178,13 @@ print('/' + drive.lower() + rest)
                             fi ;;
                     esac
                 done < /tmp/m4ri_syms.txt
+                # Unconditionally append known data symbols (MSVC .lib sometimes
+                # omits data exports from the __imp_XXX section entirely).
+                printf '  m4ri_codebook DATA\n'
+                printf '  m4ri_cantor_basis DATA\n'
             } > /tmp/m4ri.def
+            # Remove any non-DATA duplicate entries for the known data symbols
+            sed -i '/^  m4ri_codebook$\|^  m4ri_cantor_basis$/d' /tmp/m4ri.def || true
             echo "  DATA entries:"
             grep ' DATA$' /tmp/m4ri.def | head -5 || echo "  (none)"
             echo "  def total lines: $(wc -l < /tmp/m4ri.def)"
