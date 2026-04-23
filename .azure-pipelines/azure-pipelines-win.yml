@@ -1,0 +1,35 @@
+# This file was generated automatically from conda-smithy. To update this configuration,
+# update the conda-forge.yml and/or the recipe/meta.yaml.
+# -*- mode: yaml -*-
+
+jobs:
+- job: win
+  pool:
+    vmImage: windows-2022
+  strategy:
+    matrix:
+      win_64_:
+        CONFIG: win_64_
+        UPLOAD_PACKAGES: 'True'
+  timeoutInMinutes: 360
+  variables: {}
+
+  steps:
+  - script: |
+      set "CI=azure"
+      set "flow_run_id=azure_%BUILD_BUILDNUMBER%.%SYSTEM_JOBATTEMPT%"
+      set "remote_url=%BUILD_REPOSITORY_URI%"
+      set "sha=%BUILD_SOURCEVERSION%"
+      set "GIT_BRANCH=%BUILD_SOURCEBRANCHNAME%"
+      FOR /F "delims=" %%i IN ('powershell -command "Split-Path -Leaf '%BUILD_REPOSITORY_NAME%'"') DO set "FEEDSTOCK_NAME=%%i"
+      if "%BUILD_REASON%"=="PullRequest" (
+        set "IS_PR_BUILD=True"
+      ) else (
+        set "IS_PR_BUILD=False"
+      )
+      call .scripts\run_win_build.bat
+    displayName: Run Windows build
+    env:
+      BINSTAR_TOKEN: $(BINSTAR_TOKEN)
+      FEEDSTOCK_TOKEN: $(FEEDSTOCK_TOKEN)
+      STAGING_BINSTAR_TOKEN: $(STAGING_BINSTAR_TOKEN)

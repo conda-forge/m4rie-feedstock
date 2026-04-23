@@ -12,19 +12,26 @@ source:
 
 build:
   number: 0
-  skip: true  # [win]
   run_exports:
     - {{ pin_subpackage("m4rie") }}
 
 
 requirements:
   build:
-    - libtool
-    - make
-    - automake   # [unix]
-    - gnuconfig  # [unix]
-    - {{ compiler('c') }}
-    - {{ stdlib('c') }}
+    - libtool      # [unix]
+    - make         # [unix]
+    - automake     # [unix]
+    - gnuconfig    # [unix]
+    - m2-bash        # [win]
+    - m2-make        # [win]
+    - m2-sed         # [win]
+    - m2-coreutils   # [win]
+    - m2-grep        # [win]
+    - m2-gawk        # [win]
+    - m2-diffutils   # [win]
+    - {{ compiler('c') }}  # [not win]
+    - vs2022_win-64  # [win]
+    - {{ stdlib('c') }}    # [not win]
   host:
     - libpng
     - zlib
@@ -32,10 +39,13 @@ requirements:
 
 test:
   commands:
-    - test -f ${PREFIX}/include/m4rie/m4rie.h
-    - test -f ${PREFIX}/lib/lib{{ name }}.a
-    - test -f ${PREFIX}/lib/lib{{ name }}.dylib  # [osx]
-    - test -f ${PREFIX}/lib/lib{{ name }}.so     # [linux]
+    - test -f ${PREFIX}/include/m4rie/m4rie.h                          # [unix]
+    - test -f ${PREFIX}/lib/lib{{ name }}.a                            # [unix]
+    - test -f ${PREFIX}/lib/lib{{ name }}.dylib                        # [osx]
+    - test -f ${PREFIX}/lib/lib{{ name }}.so                           # [linux]
+    - if not exist %LIBRARY_PREFIX%\include\m4rie\m4rie.h exit 1       # [win]
+    - if not exist %LIBRARY_PREFIX%\lib\lib{{ name }}.a exit 1         # [win]
+    - if not exist %LIBRARY_PREFIX%\bin\lib{{ name }}-1.dll exit 1     # [win]
 
 about:
   home: https://github.com/malb/m4rie
